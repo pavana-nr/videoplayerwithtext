@@ -1,0 +1,164 @@
+import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
+
+class VideoPlayerWithControls extends StatefulWidget {
+  @override
+  _VideoPlayerWithControlsState createState() =>
+      _VideoPlayerWithControlsState();
+}
+
+class _VideoPlayerWithControlsState extends State<VideoPlayerWithControls> {
+  late VideoPlayerController _controller;
+  late Future<void> _initializeVideoPlayerFuture;
+  late int _playBackTime;
+
+  //The values that are passed when changing quality
+  late Duration newCurrentPosition;
+
+  String defaultStream =
+      'https://archive.org/download/Damas_BB_28F8B535_D_406/DaMaS.mp4';
+  String stream2 = 'https://archive.org/download/cCloud_20151126/cCloud.mp4';
+  String stream3 = 'https://archive.org/download/mblbhs/mblbhs.mp4';
+
+  @override
+  void initState() {
+    _controller = VideoPlayerController.network(defaultStream);
+    _controller.addListener(() {
+      setState(() {
+        _playBackTime = _controller.value.position.inSeconds;
+      });
+    });
+    _initializeVideoPlayerFuture = _controller.initialize();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _controller.pause()?.then((_) {
+      _controller.dispose();
+    });
+    super.dispose();
+  }
+
+  Future<bool> _clearPrevious() async {
+    await _controller.pause();
+    return true;
+  }
+
+  Future<void> _initializePlay(String videoPath) async {
+    _controller = VideoPlayerController.network(videoPath);
+    _controller.addListener(() {
+      setState(() {
+        _playBackTime = _controller.value.position.inSeconds;
+      });
+    });
+    _initializeVideoPlayerFuture = _controller.initialize().then((_) {
+      _controller.seekTo(newCurrentPosition);
+      _controller.play();
+    });
+  }
+
+  void _getValuesAndPlay(String videoPath) {
+    newCurrentPosition = _controller.value.position;
+    _startPlay(videoPath);
+    print(newCurrentPosition.toString());
+  }
+
+  Future<void> _startPlay(String videoPath) async {
+    setState(() {
+      // _initializeVideoPlayerFuture = null;
+    });
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _clearPrevious().then((_) {
+        _initializePlay(videoPath);
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: _initializeVideoPlayerFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          return Stack(
+            children: <Widget>[
+              Center(
+                child: AspectRatio(
+                  aspectRatio: _controller.value.aspectRatio,
+                  child: VideoPlayer(_controller),
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  color: Colors.black54,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: <Widget>[
+                      Container(
+                        child: FloatingActionButton(
+                          onPressed: () {
+                            setState(() {
+                              if (_controller.value.isPlaying) {
+                                _controller.pause();
+                              } else {
+                                _controller.play();
+                              }
+                            });
+                          },
+                          child: Icon(
+                            _controller.value.isPlaying
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        child: Text(
+                          _controller.value.position
+                              .toString()
+                              .split('.')
+                              .first
+                              .padLeft(8, "0"),
+                        ),
+                      ),
+                      Container(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _getValuesAndPlay(defaultStream);
+                          },
+                          child: Text('DS'),
+                        ),
+                      ),
+                      Container(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _getValuesAndPlay(stream2);
+                          },
+                          child: Text('Video Stream 2'),
+                        ),
+                      ),
+                      Container(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _getValuesAndPlay(stream3);
+
+                            print('Green Button');
+                          },
+                          child: Text('VS'),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        } else {
+          return Center(child: CircularProgressIndicator());
+        }
+      },
+    );
+  }
+}
